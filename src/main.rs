@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
         if git::is_repo(executable_dir.to_str().unwrap()) {
             println!(" ");
             println!(" ");
-            println!("{}", if config.get("color").unwrap().as_bool().unwrap() { "Checking for updates.".green() } else { "Checking for updates.".white() });
+            println!("{}", if config.get("color").unwrap().as_bool().unwrap() { "Checking for updates.".green() } else { "Checking for updates.".stylize() });
             println!(" ");
             run_command_with_stdout("git", vec!["switch", config.get("branch").unwrap().as_str().unwrap()], config.get("color").unwrap().as_bool().unwrap())?;
             run_command_with_stdout("git", vec!["pull"], config.get("color").unwrap().as_bool().unwrap())?;
@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
             executable_dir.to_str().unwrap());
             println!(" ");
             println!(" ");
-            println!("{}", if config.get("color").unwrap().as_bool().unwrap() { msg.green() } else { msg.white() });
+            println!("{}", if config.get("color").unwrap().as_bool().unwrap() { msg.green() } else { msg.stylize() });
             println!(" ");
 
             // git clone --branch [config branch] [config repo] [tmp dir]
@@ -67,7 +67,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
         let msg = "Launching instancesync. It will always find removed mods if there any any mods in the localMods or/and offlineMods folders. \nThey automatically get copied back over in the next step which is the intended way for having them up to date with the repo.";
         println!(" ");
         println!(" ");
-        println!("{}", if config.get("color").unwrap().as_bool().unwrap() { msg.green() } else { msg.white() });
+        println!("{}", if config.get("color").unwrap().as_bool().unwrap() { msg.green() } else { msg.stylize() });
         println!(" ");
         run_command_with_stdout("java", vec!["-jar", 
         "instancesync.jar"], config.get("color").unwrap().as_bool().unwrap())?;
@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
         let msg = "Copying files from offlineMods and localMods folder to mods folder.";
         println!(" ");
         println!(" ");
-        println!("{}", if config.get("color").unwrap().as_bool().unwrap() { msg.green() } else { msg.white() });
+        println!("{}", if config.get("color").unwrap().as_bool().unwrap() { msg.green() } else { msg.stylize() });
         println!(" ");
         #[cfg(target_os = "windows")] {
         run_command_with_stdout("powershell", vec!["copy-item", "offlineMods/*", "mods", "-ErrorAction", "Ignore"], config.get("color").unwrap().as_bool().unwrap())?;
@@ -93,7 +93,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
     let msg = "Executing post_exit file if it exists.";
     println!(" ");
     println!(" ");
-    println!("{}", if config.get("color").unwrap().as_bool().unwrap() { msg.green() } else { msg.white() });
+    println!("{}", if config.get("color").unwrap().as_bool().unwrap() { msg.green() } else { msg.stylize() });
     println!(" ");
     
     let post_exit_file = "post_exit";
