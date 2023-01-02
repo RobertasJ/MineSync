@@ -244,14 +244,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rlib"
-version = "0.0.1"
-dependencies = [
- "crossterm",
- "toml",
-]
-
-[[package]]
 name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -303,9 +295,10 @@ checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
 name = "sync"
 version = "0.1.0"
 dependencies = [
+ "crossterm",
  "fs_extra",
  "git2",
- "rlib",
+ "toml",
 ]
 
 [[package]]
