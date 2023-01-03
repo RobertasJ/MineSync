@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
     // if repo doesnt exist, create it, if sync is disabled then skip the whole if else statement
     if config.get("sync").unwrap().as_bool().unwrap() {
 
-        if git::is_repo(executable_dir.to_str().unwrap()) {
+        if git::is_repo(&executable_dir) {
             println!(" ");
             println!(" ");
             println!("{}", if config.get("color").unwrap().as_bool().unwrap() { "Checking for updates.".green() } else { "Checking for updates.".stylize() });
@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
             run_command_with_stdout("git", vec!["pull"], config.get("color").unwrap().as_bool().unwrap())?;
 
         } else {
-            let msg = format!("Cloning git repo into {}. Remember to not have any characters like \"(\" or \")\" \nin your path to the instance otherwise powershell will eat shit and die. \n You can remove the tmp folder after the script is complete.", 
+            let msg = format!("Cloning git repo into {}. Remember to not have any characters like \"(\" or \")\" \nin your path to the instance otherwise powershell will eat shit and die. \nYou can remove the tmp folder after the script is complete.", 
             executable_dir.to_str().unwrap());
             println!(" ");
             println!(" ");
@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
         println!("{}", if config.get("color").unwrap().as_bool().unwrap() { msg.green() } else { msg.stylize() });
         println!(" ");
         run_command_with_stdout("java", vec!["-jar", 
-        "instancesync.jar"], config.get("color").unwrap().as_bool().unwrap())?;
+        "instancesync.jar"], config.get("color").unwrap().as_bool().unwrap()).expect("Failed to launch isntancesync.jar. check that you have java installed.");
 
         // move files from offliine mods and locals mods folder to mods folder
         let msg = "Copying files from offlineMods and localMods folder to mods folder.";

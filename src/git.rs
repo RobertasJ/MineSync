@@ -1,8 +1,6 @@
-use git2::Repository;
+use std::path::Path;
 
-pub fn is_repo(path: &str) -> bool {
-    match Repository::open(path) {
-        Ok(_) => true,
-        Err(_) => false,
-    }
+
+pub fn is_repo(path: &Path) -> bool {
+    path.join(".git").exists()
 }
