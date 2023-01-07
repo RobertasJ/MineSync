@@ -35,8 +35,8 @@ fn main() -> Result<(), Box<dyn StdError>> {
             println!(" ");
             println!("{}", if config.get("color").unwrap().as_bool().unwrap() { "Checking for updates.".green() } else { "Checking for updates.".stylize() });
             println!(" ");
-            run_command_with_stdout("git", vec!["switch", config.get("branch").unwrap().as_str().unwrap()], config.get("color").unwrap().as_bool().unwrap())?;
-            run_command_with_stdout("git", vec!["pull"], config.get("color").unwrap().as_bool().unwrap())?;
+            run_command_with_stdout("git", vec!["switch", config.get("branch").unwrap().as_str().unwrap()], config.get("color").unwrap().as_bool().unwrap()).expect("git branch failed to execute");
+            run_command_with_stdout("git", vec!["pull"], config.get("color").unwrap().as_bool().unwrap()).expect("git pull failed to execute");
 
         } else {
             let msg = format!("Cloning git repo into {}. Remember to not have any characters like \"(\" or \")\" \nin your path to the instance otherwise powershell will eat shit and die. \nYou can remove the tmp folder after the script is complete.", 
@@ -48,15 +48,15 @@ fn main() -> Result<(), Box<dyn StdError>> {
 
             // git clone --branch [config branch] [config repo] [tmp dir]
             run_command_with_stdout("git", vec!["clone", "--branch", config.get("branch").unwrap().as_str().unwrap(), 
-            config.get("repo").unwrap().as_str().unwrap(), "tmp"], config.get("color").unwrap().as_bool().unwrap())?;
+            config.get("repo").unwrap().as_str().unwrap(), "tmp"], config.get("color").unwrap().as_bool().unwrap()).expect("git clone failed to execute");
             // move contents of tmp to executable parent dir
             #[cfg(target_os = "windows")] {
-                run_command_with_stdout("powershell", vec!["move-item", "tmp/.git", "."], config.get("color").unwrap().as_bool().unwrap())?;
-                run_command_with_stdout("powershell", vec!["move-item", "tmp/*", "."], config.get("color").unwrap().as_bool().unwrap())?;
+                run_command_with_stdout("powershell", vec!["move-item", "tmp/.git", "."], config.get("color").unwrap().as_bool().unwrap()).expect("powershell move-item failed to execute");
+                run_command_with_stdout("powershell", vec!["move-item", "tmp/*", "."], config.get("color").unwrap().as_bool().unwrap()).expect("powershell move-item failed to execute");
             }
             #[cfg(not(target_os = "windows"))] {
-                run_command_with_stdout("mv", vec!["-rf", "tmp/.git", "."], config.get("color").unwrap().as_bool().unwrap())?;
-                run_command_with_stdout("mv", vec!["-rf", "tmp/*", "."], config.get("color").unwrap().as_bool().unwrap())?;
+                run_command_with_stdout("mv", vec!["-rf", "tmp/.git", "."], config.get("color").unwrap().as_bool().unwrap()).expect("mv -rf failed to execute");
+                run_command_with_stdout("mv", vec!["-rf", "tmp/*", "."], config.get("color").unwrap().as_bool().unwrap()).expect("mv -rf failed to execute");
             }
             
         }
