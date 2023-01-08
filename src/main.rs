@@ -109,14 +109,11 @@ fn main() -> Result<(), Box<dyn StdError>> {
         }
     })
     .collect::<Vec<_>>();
-    let executable_dir_string = executable_dir.clone();
-    let executable_dir_string = executable_dir_string.to_str().unwrap();
-    let executable_dir_string = executable_dir_string.to_string() + "/";
     if files.len() > 0 {
         match files[0].split(".").last() {
-            Some("sh") => run_command_with_stdout("bash", vec![&((executable_dir_string + &files[0]))], config.get("color").unwrap().as_bool().unwrap())?,
-            Some("ps1") => run_command_with_stdout("powershell", vec![&(executable_dir_string + &files[0])], config.get("color").unwrap().as_bool().unwrap())?,
-            Some(_) => run_command_with_stdout(&(executable_dir_string + &files[0]), vec![], config.get("color").unwrap().as_bool().unwrap())?,
+            Some("sh") => run_in_shell(format!("bash {}", &files[0]).as_str())?,
+            Some("ps1") => run_in_shell(format!("powershell {}", &files[0]).as_str())?,
+            Some(_) => run_in_shell(&files[0])?,
             _ => ()
         };
     }

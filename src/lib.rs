@@ -1,6 +1,7 @@
 use std::{process::{Command, Stdio}, error::Error as StdError, io::{ErrorKind, Error, BufReader, BufRead}};
 
 use crossterm::style::{Stylize};
+use execute::{Execute, shell};
 
 
 pub mod config;
@@ -26,3 +27,14 @@ pub fn run_command_with_stdout(command: &str, args: Vec<&str>, color: bool) -> R
     Ok(())
 }
 
+pub fn run_in_shell(command: &str) -> Result<(), Box<dyn StdError>> {
+    let mut command = shell(command);
+
+    command.stdout(Stdio::piped());
+
+    let output = command.execute_output().unwrap();
+
+    println!("{}", String::from_utf8(output.stdout).unwrap());
+
+    Ok(())
+}

@@ -7,6 +7,5 @@ edition = "2021"
 
 [dependencies]
 crossterm = "0.25.0"
-fs_extra = "1.2.0"
-git2 = "0.15.0"
+execute = "0.2.11"
 toml = "0.5.10"
