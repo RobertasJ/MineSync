@@ -1,104 +1,123 @@
 use std::{error::Error as StdError, vec, env, fs};
-use crossterm::style::Stylize;
 use sync::*;
 use toml::Value;
 
 const CONFIG_FILE_NAME: &str = "config.toml";
 fn main() -> Result<(), Box<dyn StdError>> {
     // create cofig path and config
-    let binding = std::env::current_exe()?;
-    let executable_dir = binding.parent().unwrap().to_path_buf();
-    let config_path = executable_dir.join(CONFIG_FILE_NAME);
+    let exec_dir = executable_dir();
+    let config_path = executable_dir().join(CONFIG_FILE_NAME);
+
 
     // check for config file and if it doesnt exist then create a new config
     if !config_path.exists() {
         fs::File::create(&config_path)?;
     }
-
-    let mut config = config::open_config(config_path.to_str().unwrap()).expect("failed opening config file");
+    // opens the config file if it exists otherwise create a new config with default parameters
+    let mut config = config::open_config(config_path.as_path()).expect("failed opening config file");
     config::check_entries(&mut config, vec![
         ("branch", Value::String("main".to_string())),
         ("repo", Value::String("https://github.com/RobertasJ/skylore.git".to_string())),
         ("sync", Value::Boolean(true)),
-        ("run_instancesync", Value::Boolean(true)),
-        ("color", Value::Boolean(false))
+        ("run_instancesync", Value::Boolean(true))
     ]);
 
+    let branch = config.get("branch").unwrap().as_str().unwrap();
+    let repo = config.get("repo").unwrap().as_str().unwrap();
+    let sync = config.get("sync").unwrap().as_bool().unwrap();
+    let run_instancesync = config.get("run_instancesync").unwrap().as_bool().unwrap();
+
+
     // go to the executable directory
-    env::set_current_dir(&executable_dir).unwrap();
+    env::set_current_dir(&exec_dir).unwrap();
 
     // if repo doesnt exist, create it, if sync is disabled then skip the whole if else statement
-    if config.get("sync").unwrap().as_bool().unwrap() {
+    if sync {
 
-        if git::is_repo(&executable_dir) {
+        if git::is_repo(&exec_dir) {
             println!(" ");
             println!(" ");
-            println!("{}", if config.get("color").unwrap().as_bool().unwrap() { "Checking for updates.".green() } else { "Checking for updates.".stylize() });
-            println!(" ");
-            run_command_with_stdout("git", vec!["switch", config.get("branch").unwrap().as_str().unwrap()], config.get("color").unwrap().as_bool().unwrap()).expect("git branch failed to execute");
-            run_command_with_stdout("git", vec!["pull"], config.get("color").unwrap().as_bool().unwrap()).expect("git pull failed to execute");
+            println!("{}", color::green("Checking for updates."));
+
+            // if config.get("repo").unwrap().to_string() ==  {
+                
+            // }
+
+            execute::color(&format!("git switch {}", branch)).expect("git branch failed to execute");
+            execute::color("git pull").expect("git pull failed to execute");
+
+            
 
         } else {
-            let msg = format!("Cloning git repo into {}. Remember to not have any characters like \"(\" or \")\" \nin your path to the instance otherwise powershell will eat shit and die. \nYou can remove the tmp folder after the script is complete.", 
-            executable_dir.to_str().unwrap());
+            let msg = format!("{}{}{}", 
+            color::green("Cloning git repo into "),
+            color::bold(&color::dark_green(exec_dir.to_str().unwrap()).to_string()),
+            color::green(". Remember to not have any characters like \"(\" or \")\" \nin your path to the instance otherwise powershell will eat shit and die. \nYou can remove the tmp folder after the script is complete."));
             println!(" ");
             println!(" ");
-            println!("{}", if config.get("color").unwrap().as_bool().unwrap() { msg.green() } else { msg.stylize() });
-            println!(" ");
+            println!("{}", color::green(&msg));
 
-            // git clone --branch [config branch] [config repo] [tmp dir]
-            run_command_with_stdout("git", vec!["clone", "--branch", config.get("branch").unwrap().as_str().unwrap(), 
-            config.get("repo").unwrap().as_str().unwrap(), "tmp"], config.get("color").unwrap().as_bool().unwrap()).expect("git clone failed to execute");
+            // when .git directory doesnt exist but the tmp direcotry does
+            if exec_dir.join("tmp").exists() {
+                #[cfg(target_os = "windows")]
+                {
+                    execute::color("powershell remove-item tmp -recurse")?;
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    execute::color("rm -rf tmp")?;
+                }
+            }
+
+            // git clone --branch [config branch] [config repo] tmp
+            execute::color(&format!("git clone --branch {} {} tmp", config.get("branch").unwrap().as_str().unwrap(), repo)).expect("git clone failed to execute");
             // move contents of tmp to executable parent dir
             #[cfg(target_os = "windows")] {
-                run_command_with_stdout("powershell", vec!["move-item", "tmp/.git", "."], config.get("color").unwrap().as_bool().unwrap()).expect("powershell move-item failed to execute");
-                run_command_with_stdout("powershell", vec!["move-item", "tmp/*", "."], config.get("color").unwrap().as_bool().unwrap()).expect("powershell move-item failed to execute");
+                execute::color("powershell move-item tmp/.git .").expect("powershell move-item failed to execute");
+                execute::color("powershell move-item tmp/* .").expect("powershell move-item failed to execute");
             }
             #[cfg(not(target_os = "windows"))] {
-                run_command_with_stdout("mv", vec!["-rf", "tmp/.git", "."], config.get("color").unwrap().as_bool().unwrap()).expect("mv -rf failed to execute");
-                run_command_with_stdout("mv", vec!["-rf", "tmp/*", "."], config.get("color").unwrap().as_bool().unwrap()).expect("mv -rf failed to execute");
+                execute::color("mv -rf tmp/.git .").expect("mv -rf failed to execute");
+                execute::color("mv -rf tmp/* .").expect("mv -rf failed to execute");
             }
-            
         }
+
+        
     }
-    if config.get("run_instancesync").unwrap().as_bool().unwrap() {
+    if run_instancesync {
         // mods syncing trough instancesync
         // java -jar [parent dir of executable]/instancesync.jar
         let msg = "Launching instancesync. It will always find removed mods if there any any mods in the localMods or/and offlineMods folders. \nThey automatically get copied back over in the next step which is the intended way for having them up to date with the repo.";
         println!(" ");
         println!(" ");
-        println!("{}", if config.get("color").unwrap().as_bool().unwrap() { msg.green() } else { msg.stylize() });
-        println!(" ");
-        run_command_with_stdout("java", vec!["-jar", 
-        "instancesync.jar"], config.get("color").unwrap().as_bool().unwrap()).expect("Failed to launch isntancesync.jar. check that you have java installed.");
+        println!("{}", color::green(&msg));
+        execute::color("java -jar instancesync.jar").expect("Failed to launch instancesync.jar. check that you have java installed.");
 
         // move files from offliine mods and locals mods folder to mods folder
         let msg = "Copying files from offlineMods and localMods folder to mods folder.";
         println!(" ");
         println!(" ");
-        println!("{}", if config.get("color").unwrap().as_bool().unwrap() { msg.green() } else { msg.stylize() });
-        println!(" ");
+        println!("{}", color::green(&msg));
         #[cfg(target_os = "windows")] {
-        run_command_with_stdout("powershell", vec!["copy-item", "offlineMods/*", "mods", "-ErrorAction", "Ignore"], config.get("color").unwrap().as_bool().unwrap())?;
-        run_command_with_stdout("powershell", vec!["copy-item", "localMods/*", "mods", "-ErrorAction", "Ignore"], config.get("color").unwrap().as_bool().unwrap())?;
-        run_command_with_stdout("powershell", vec!["copy-item", "serverMods/*", "mods", "-ErrorAction", "Ignore"], config.get("color").unwrap().as_bool().unwrap())?;
+        execute::color("powershell copy-item offlineMods/* mods -ErrorAction Ignore")?;
+        execute::color("powershell copy-item localMods/* mods ErrorAction Ignore")?;
+        execute::color("powershell copy-item serverMods/* mods ErrorAction Ignore")?;
 
         }
         #[cfg(not(target_os = "windows"))] {
-            run_command_with_stdout("cp", vec!["-rf", "offlineMods/*", "mods" ], config.get("color").unwrap().as_bool().unwrap())?;
-            run_command_with_stdout("cp", vec!["-rf", "localMods/*", "mods" ], config.get("color").unwrap().as_bool().unwrap())?;
-            run_command_with_stdout("cp", vec!["-rf", "serverMods/*", "mods" ], config.get("color").unwrap().as_bool().unwrap())?;
+            execute::color("cp -rf offlineMods/* mods")?;
+            execute::color("cp -rf localMods/* mods")?;
+            execute::color("cp -rf serverMods/* mods")?;
         }
     }
     let msg = "Executing post_exit file if it exists.";
     println!(" ");
     println!(" ");
-    println!("{}", if config.get("color").unwrap().as_bool().unwrap() { msg.green() } else { msg.stylize() });
-    println!(" ");
-    
+    println!("{}", color::green(&msg));
+
     let post_exit_file = "post_exit";
 
-    let files = fs::read_dir(executable_dir.clone()).unwrap()
+    let files = fs::read_dir(exec_dir.clone()).unwrap()
     .filter_map(|entry| {
         let entry = entry.unwrap();
         let file_name = entry.file_name().to_string_lossy().to_string();
@@ -111,9 +130,9 @@ fn main() -> Result<(), Box<dyn StdError>> {
     .collect::<Vec<_>>();
     if files.len() > 0 {
         match files[0].split(".").last() {
-            Some("sh") => run_in_shell(format!("bash {}", &files[0]).as_str())?,
-            Some("ps1") => run_in_shell(format!("powershell {}", &files[0]).as_str())?,
-            Some(_) => run_in_shell(&files[0])?,
+            Some("sh") => execute::default(format!("bash {}", &files[0]).as_str())?,
+            Some("ps1") => execute::default(format!("powershell {}", &files[0]).as_str())?,
+            Some(_) => execute::default(&files[0])?,
             _ => ()
         };
     }

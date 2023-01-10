@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, path::Path};
 use toml;
 use std::error;
 
@@ -10,7 +10,7 @@ pub fn check_entries(config: &mut toml::value::Table, entries: Vec<(&str, toml::
     }
 }
 
-pub fn open_config(filepath: &str) -> Result<toml::value::Table, Box<dyn error::Error>> {
+pub fn open_config(filepath: &Path) -> Result<toml::value::Table, Box<dyn error::Error>> {
     let contents = fs::read_to_string(filepath)?;
     let config = toml::from_str(&contents)?;
     Ok(config)
