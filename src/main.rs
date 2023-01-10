@@ -41,17 +41,10 @@ fn main() -> Result<(), Box<dyn StdError>> {
             println!(" ");
             println!("{}", color::green("Checking for updates."));
 
-            if repo != git::current_repo()?.unwrap() {
-                println!("{}", color::green("Repo change detected."));
-                execute::color(&format!("git set origin {}", repo))?;
-            }
-
-            execute::color(&format!("git switch {}", branch)).expect("git branch failed to execute");
-            execute::color("git pull origin")?;
-            execute::color("git reset --hard")?;
-
             
-
+            execute::color(&format!("git pull origin {}", branch)).expect("git pull origin failed to execute");
+            execute::color("git reset --hard HEAD").expect("git reset --hard failed to execute");
+            execute::color(&format!("git switch {}", branch)).expect("git branch failed to execute");
         } else {
             let msg = format!("{}{}{}", 
             color::green("Cloning git repo into "),
@@ -61,10 +54,10 @@ fn main() -> Result<(), Box<dyn StdError>> {
             println!(" ");
             println!("{}", color::green(&msg));
 
-            execute::color("git init")?;
-            execute::color(&format!("git add origin {}", repo))?;
-            execute::color("git pull origin")?;
-            execute::color("git reset --hard")?;
+            execute::color("git init").expect("git init failed to execute");
+            execute::color(&format!("git remote add origin {}", repo)).expect("git add origin failed to execute");
+            execute::color(&format!("git pull origin {}", branch)).expect("git pull origin failed to execute");
+            execute::color("git reset --hard HEAD").expect("git reset --hard failed to execute");
 
         }
 
