@@ -19,13 +19,15 @@ fn main() -> Result<(), Box<dyn StdError>> {
         ("branch", Value::String("main".to_string())),
         ("repo", Value::String("https://github.com/RobertasJ/skylore.git".to_string())),
         ("sync", Value::Boolean(true)),
-        ("run_instancesync", Value::Boolean(true))
+        ("run_instancesync", Value::Boolean(true)),
+        ("server", Value::Boolean(false))
     ]);
 
     let branch = config.get("branch").unwrap().as_str().unwrap();
     let repo = config.get("repo").unwrap().as_str().unwrap();
     let sync = config.get("sync").unwrap().as_bool().unwrap();
     let run_instancesync = config.get("run_instancesync").unwrap().as_bool().unwrap();
+    let server = config.get("server").unwrap().as_bool().unwrap();
 
 
     // go to the executable directory
@@ -39,12 +41,14 @@ fn main() -> Result<(), Box<dyn StdError>> {
             println!(" ");
             println!("{}", color::green("Checking for updates."));
 
-            // if config.get("repo").unwrap().to_string() ==  {
-                
-            // }
+            if repo != git::current_repo()?.unwrap() {
+                println!("{}", color::green("Repo change detected."));
+                execute::color(&format!("git set origin {}", repo))?;
+            }
 
             execute::color(&format!("git switch {}", branch)).expect("git branch failed to execute");
-            execute::color("git pull").expect("git pull failed to execute");
+            execute::color("git pull origin")?;
+            execute::color("git reset --hard")?;
 
             
 
@@ -57,33 +61,17 @@ fn main() -> Result<(), Box<dyn StdError>> {
             println!(" ");
             println!("{}", color::green(&msg));
 
-            // when .git directory doesnt exist but the tmp direcotry does
-            if exec_dir.join("tmp").exists() {
-                #[cfg(target_os = "windows")]
-                {
-                    execute::color("powershell remove-item tmp -recurse")?;
-                }
-                #[cfg(not(target_os = "windows"))]
-                {
-                    execute::color("rm -rf tmp")?;
-                }
-            }
+            execute::color("git init")?;
+            execute::color(&format!("git add origin {}", repo))?;
+            execute::color("git pull origin")?;
+            execute::color("git reset --hard")?;
 
-            // git clone --branch [config branch] [config repo] tmp
-            execute::color(&format!("git clone --branch {} {} tmp", config.get("branch").unwrap().as_str().unwrap(), repo)).expect("git clone failed to execute");
-            // move contents of tmp to executable parent dir
-            #[cfg(target_os = "windows")] {
-                execute::color("powershell move-item tmp/.git .").expect("powershell move-item failed to execute");
-                execute::color("powershell move-item tmp/* .").expect("powershell move-item failed to execute");
-            }
-            #[cfg(not(target_os = "windows"))] {
-                execute::color("mv -rf tmp/.git .").expect("mv -rf failed to execute");
-                execute::color("mv -rf tmp/* .").expect("mv -rf failed to execute");
-            }
         }
 
         
     }
+
+    // runs instancesync and mod copying
     if run_instancesync {
         // mods syncing trough instancesync
         // java -jar [parent dir of executable]/instancesync.jar
@@ -99,17 +87,21 @@ fn main() -> Result<(), Box<dyn StdError>> {
         println!(" ");
         println!("{}", color::green(&msg));
         #[cfg(target_os = "windows")] {
-        execute::color("powershell copy-item offlineMods/* mods -ErrorAction Ignore")?;
-        execute::color("powershell copy-item localMods/* mods ErrorAction Ignore")?;
-        execute::color("powershell copy-item serverMods/* mods ErrorAction Ignore")?;
-
+            execute::color("powershell copy-item offlineMods/* mods -ErrorAction Ignore")?;
+            execute::color("powershell copy-item localMods/* mods -ErrorAction Ignore")?;
+            if server {
+                execute::color("powershell copy-item serverMods/* mods -ErrorAction Ignore")?;
+            }
         }
         #[cfg(not(target_os = "windows"))] {
             execute::color("cp -rf offlineMods/* mods")?;
             execute::color("cp -rf localMods/* mods")?;
-            execute::color("cp -rf serverMods/* mods")?;
+            if server {
+                execute::color("cp -rf serverMods/* mods")?;
+            }
         }
     }
+
     let msg = "Executing post_exit file if it exists.";
     println!(" ");
     println!(" ");
