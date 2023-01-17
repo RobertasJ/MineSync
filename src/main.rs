@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
     let mut config = config::open_config(config_path.as_path()).expect("failed opening config file");
     config::check_entries(&mut config, vec![
         ("branch", Value::String("main".to_string())),
-        ("repo", Value::String("https://github.com/RobertasJ/skylore.git".to_string())),
+        ("repo", Value::String("https://github.com/TeamAOF/skylore.git".to_string())),
         ("sync", Value::Boolean(true)),
         ("run_instancesync", Value::Boolean(true)),
         ("server", Value::Boolean(false))
@@ -41,10 +41,16 @@ fn main() -> Result<(), Box<dyn StdError>> {
             println!(" ");
             println!("{}", color::green("Checking for updates."));
 
+            if git::current_repo()?.unwrap() != repo {
+                println!("{}", color::bold(&color::red("Current repository doesnt match the repository in the config file. Please remove the .git folder to continue.").to_string()));
+                std::process::exit(1);
+            }
             
-            execute::color(&format!("git pull origin {}", branch)).expect("git pull origin failed to execute");
-            execute::color("git reset --hard HEAD").expect("git reset --hard failed to execute");
-            execute::color(&format!("git switch {}", branch)).expect("git branch failed to execute");
+            execute::no_output("git add *").expect("git add * failed to execute");
+            execute::no_output("git commit -a -m \"tmp commit\"").expect("git commit -m \"tmp commit\" failed to execute");
+            execute::color(&format!("git fetch origin {}", branch)).expect("git fetch origin failed to execute");
+            execute::color(&format!(" git merge -s recursive -X theirs origin/{}", branch)).expect("got merge failed to execute");
+            execute::no_output(&format!("git switch {}", branch)).expect("git branch failed to execute");
         } else {
             let msg = format!("{}{}{}", 
             color::green("Cloning git repo into "),
@@ -54,11 +60,13 @@ fn main() -> Result<(), Box<dyn StdError>> {
             println!(" ");
             println!("{}", color::green(&msg));
 
-            execute::color("git init").expect("git init failed to execute");
-            execute::color(&format!("git remote add origin {}", repo)).expect("git add origin failed to execute");
-            execute::color(&format!("git pull origin {}", branch)).expect("git pull origin failed to execute");
-            execute::color("git reset --hard HEAD").expect("git reset --hard failed to execute");
-
+            execute::no_output("git init").expect("git init failed to execute");
+            execute::no_output(&format!("git remote add origin {}", repo)).expect("git add origin failed to execute");
+            execute::no_output("git add *").expect("git add * failed to execute");
+            execute::no_output("git commit -a -m \"tmp commit\"").expect("git commit -m \"tmp commit\" failed to execute");
+            execute::color(&format!("git fetch origin {}", branch)).expect("git fetch origin failed to execute");
+            execute::color(&format!(" git merge -s recursive -X theirs origin/{}", branch)).expect("got merge failed to execute");
+            execute::no_output(&format!("git switch {}", branch)).expect("git branch failed to execute");
         }
 
         

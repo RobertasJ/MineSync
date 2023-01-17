@@ -38,3 +38,8 @@ pub fn string_return(command: &str) -> Result<String, Box<dyn StdError>> {
     let output = execute::command(command).output()?;
     Ok(String::from_utf8(output.stdout)?)
 }
+
+pub fn no_output(command: &str) -> Result<(), Box<dyn StdError>> {
+    execute::command(command).output()?;
+    Ok(())
+}

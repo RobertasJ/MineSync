@@ -47,3 +47,11 @@ pub fn bold(str: &str) -> RColor {
         Colorless(str)
     }
 }
+
+pub fn red(str: &str) -> RColor {
+    if stdout().is_tty() {
+        Colored(str.red())
+    } else {
+        Colorless(str)
+    }
+}
