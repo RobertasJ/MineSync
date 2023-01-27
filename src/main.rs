@@ -1,27 +1,17 @@
-use std::{error::Error as StdError, vec, env, fs};
+use std::{error::Error as StdError, vec, env, fs, path::{Path}};
 use sync::*;
 use toml::Value;
 
 const CONFIG_FILE_NAME: &str = "config.toml";
 fn main() -> Result<(), Box<dyn StdError>> {
-    // create cofig path and config
+    // environment variables and config variables creation
     let exec_dir = executable_dir();
     let config_path = executable_dir().join(CONFIG_FILE_NAME);
 
-
-    // check for config file and if it doesnt exist then create a new config
-    if !config_path.exists() {
-        fs::File::create(&config_path)?;
-    }
-    // opens the config file if it exists otherwise create a new config with default parameters
+    check_config(&config_path)?;
     let mut config = config::open_config(config_path.as_path()).expect("failed opening config file");
-    config::check_entries(&mut config, vec![
-        ("branch", Value::String("main".to_string())),
-        ("repo", Value::String("https://github.com/TeamAOF/skylore.git".to_string())),
-        ("sync", Value::Boolean(true)),
-        ("run_instancesync", Value::Boolean(true)),
-        ("server", Value::Boolean(false))
-    ]);
+    create_entries(&mut config);
+    config::write_config(&config, config_path.to_str().unwrap()).expect("failed to write to config");
 
     let branch = config.get("branch").unwrap().as_str().unwrap();
     let repo = config.get("repo").unwrap().as_str().unwrap();
@@ -29,80 +19,114 @@ fn main() -> Result<(), Box<dyn StdError>> {
     let run_instancesync = config.get("run_instancesync").unwrap().as_bool().unwrap();
     let server = config.get("server").unwrap().as_bool().unwrap();
 
-
-    // go to the executable directory
-    env::set_current_dir(&exec_dir).unwrap();
-
-    // if repo doesnt exist, create it, if sync is disabled then skip the whole if else statement
+    // program logic
     if sync {
-
         if git::is_repo(&exec_dir) {
-            println!(" ");
-            println!(" ");
-            println!("{}", color::green("Checking for updates."));
-
-            if git::current_repo()?.unwrap() != repo {
-                println!("{}", color::bold(&color::red("Current repository doesnt match the repository in the config file. Please remove the .git folder to continue.").to_string()));
-                std::process::exit(1);
-            }
-            
-            execute::no_output("git add *").expect("git add * failed to execute");
-            execute::no_output("git commit -a -m \"tmp commit\"").expect("git commit -m \"tmp commit\" failed to execute");
-            execute::color(&format!("git fetch origin {}", branch)).expect("git fetch origin failed to execute");
-            execute::color(&format!(" git merge -s recursive -X theirs origin/{}", branch)).expect("got merge failed to execute");
-            execute::no_output(&format!("git switch {}", branch)).expect("git branch failed to execute");
+            check_updates(repo, branch, &exec_dir).expect("failed checking for updates");
         } else {
-            let msg = format!("{}{}{}", 
-            color::green("Cloning git repo into "),
-            color::bold(&color::dark_green(exec_dir.to_str().unwrap()).to_string()),
-            color::green(". Remember to not have any characters like \"(\" or \")\" \nin your path to the instance otherwise powershell will eat shit and die. \nYou can remove the tmp folder after the script is complete."));
-            println!(" ");
-            println!(" ");
-            println!("{}", color::green(&msg));
-
-            execute::no_output("git init").expect("git init failed to execute");
-            execute::no_output(&format!("git remote add origin {}", repo)).expect("git add origin failed to execute");
-            execute::no_output("git add *").expect("git add * failed to execute");
-            execute::no_output("git commit -a -m \"tmp commit\"").expect("git commit -m \"tmp commit\" failed to execute");
-            execute::color(&format!("git fetch origin {}", branch)).expect("git fetch origin failed to execute");
-            execute::color(&format!(" git merge -s recursive -X theirs origin/{}", branch)).expect("got merge failed to execute");
-            execute::no_output(&format!("git switch {}", branch)).expect("git branch failed to execute");
+            create_repo(branch, repo, &exec_dir).expect("failed creating the repo");
         }
-
-        
     }
 
-    // runs instancesync and mod copying
     if run_instancesync {
-        // mods syncing trough instancesync
-        // java -jar [parent dir of executable]/instancesync.jar
-        let msg = "Launching instancesync. It will always find removed mods if there any any mods in the localMods or/and offlineMods folders. \nThey automatically get copied back over in the next step which is the intended way for having them up to date with the repo.";
-        println!(" ");
-        println!(" ");
-        println!("{}", color::green(&msg));
-        execute::color("java -jar instancesync.jar").expect("Failed to launch instancesync.jar. check that you have java installed.");
-
-        // move files from offliine mods and locals mods folder to mods folder
-        let msg = "Copying files from offlineMods and localMods folder to mods folder.";
-        println!(" ");
-        println!(" ");
-        println!("{}", color::green(&msg));
-        #[cfg(target_os = "windows")] {
-            execute::color("powershell copy-item offlineMods/* mods -ErrorAction Ignore")?;
-            execute::color("powershell copy-item localMods/* mods -ErrorAction Ignore")?;
-            if server {
-                execute::color("powershell copy-item serverMods/* mods -ErrorAction Ignore")?;
-            }
-        }
-        #[cfg(not(target_os = "windows"))] {
-            execute::color("cp -rf offlineMods/* mods")?;
-            execute::color("cp -rf localMods/* mods")?;
-            if server {
-                execute::color("cp -rf serverMods/* mods")?;
-            }
-        }
+        run_instance_sync(server, &exec_dir).expect("failed to run instancesync");
     }
 
+    execute_post_exit_executable(&exec_dir).expect("failed executing/checking the post_exit executable");
+    Ok(())
+}
+
+fn check_config(config_path: &Path) -> Result<(), Box<dyn StdError>>  {
+    if !config_path.exists() {
+        fs::File::create(&config_path)?;
+    }
+    Ok(())
+}
+
+fn create_entries(config: &mut toml::value::Table) {
+    config::check_entries(config, vec![
+        ("branch", Value::String("main".to_string())),
+        ("repo", Value::String("https://github.com/TeamAOF/skylore.git".to_string())),
+        ("sync", Value::Boolean(true)),
+        ("run_instancesync", Value::Boolean(true)),
+        ("server", Value::Boolean(false))
+    ]);
+}
+
+fn check_updates(repo: &str, branch: &str, exec_dir: &Path) -> Result<(), Box<(dyn StdError)>> {
+    env::set_current_dir(&exec_dir)?;
+
+    println!(" ");
+    println!(" ");
+    println!("{}", color::green("Checking for updates."));
+
+    if git::current_repo()?.unwrap() != repo {
+        println!("{}", color::bold(&color::red("Current repository doesnt match the repository in the config file. Please remove the .git folder to continue.").to_string()));
+        std::process::exit(1);
+    }
+    
+    execute::no_output("git add *").expect("failed to run git");
+    execute::no_output("git commit -a -m \"tmp commit\"").expect("failed to run git");
+    execute::color(&format!("git fetch origin {}", branch)).expect("failed to run git");
+    execute::color(&format!(" git merge -s recursive -X theirs origin/{}", branch)).expect("failed to run git");
+    execute::no_output(&format!("git switch {}", branch)).expect("failed to run git");
+    Ok(())
+}
+
+fn create_repo(branch: &str, repo: &str, exec_dir: &Path) -> Result<(), Box<dyn StdError>> {
+    env::set_current_dir(&exec_dir)?;
+
+    let msg = format!("{}{}{}", 
+    color::green("Cloning git repo into "),
+    color::bold(&color::dark_green(exec_dir.to_str().unwrap()).to_string()),
+    color::green(". Remember to not have any characters like \"(\" or \")\" \nin your path to the instance otherwise powershell will eat shit and die. \nYou can remove the tmp folder after the script is complete."));
+    println!(" ");
+    println!(" ");
+    println!("{}", color::green(&msg));
+
+    execute::no_output("git init").expect("failed to run git");
+    execute::no_output(&format!("git remote add origin {}", repo)).expect("failed to run git");
+    execute::no_output("git add *").expect("failed to run git");
+    execute::no_output("git commit -a -m \"tmp commit\"").expect("failed to run git");
+    execute::color(&format!("git fetch origin {}", branch)).expect("failed to run git");
+    execute::color(&format!(" git merge -s recursive -X theirs origin/{}", branch)).expect("failed to run git");
+    execute::no_output(&format!("git switch {}", branch)).expect("failed to run git");
+
+    Ok(())
+}
+
+fn run_instance_sync(server: bool, exec_dir: &Path) -> Result<(), Box<dyn StdError>> {
+    env::set_current_dir(&exec_dir)?;
+
+    let msg = "Launching instancesync. It will always find removed mods if there any any mods in the localMods or/and offlineMods folders. \nThey automatically get copied back over in the next step which is the intended way for having them up to date with the repo.";
+    println!(" ");
+    println!(" ");
+    println!("{}", color::green(&msg));
+    execute::color("java -jar instancesync.jar").expect("Failed to launch instancesync.jar. check that you have java installed.");
+
+    let msg = "Copying files from offlineMods and localMods folder to mods folder.";
+    println!(" ");
+    println!(" ");
+    println!("{}", color::green(&msg));
+    #[cfg(target_os = "windows")] {
+        execute::color("powershell copy-item offlineMods/* mods -ErrorAction Ignore")?;
+        execute::color("powershell copy-item localMods/* mods -ErrorAction Ignore")?;
+        if server {
+            execute::color("powershell copy-item serverMods/* mods -ErrorAction Ignore")?;
+        }
+    }
+    #[cfg(not(target_os = "windows"))] {
+        execute::color("cp -rf offlineMods/* mods")?;
+        execute::color("cp -rf localMods/* mods")?;
+        if server {
+            execute::color("cp -rf serverMods/* mods")?;
+        }
+    }
+    
+    Ok(())
+}
+
+fn execute_post_exit_executable(exec_dir: &Path) -> Result<(), Box<dyn StdError>> {
     let msg = "Executing post_exit file if it exists.";
     println!(" ");
     println!(" ");
@@ -129,11 +153,5 @@ fn main() -> Result<(), Box<dyn StdError>> {
             _ => ()
         };
     }
-    
-    
-    // write to config
-    config::write_config(&config, config_path.to_str().unwrap()).expect("failed to write to config");
-
     Ok(())
 }
-
