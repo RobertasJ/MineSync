@@ -1,8 +1,11 @@
+#![allow(clippy::clone_double_ref)]
 use std::{error::Error as StdError, vec, env, fs, path::{Path, PathBuf}, process::exit};
 use eframe::{App, egui::{CentralPanel, Layout}, emath::Align, epaint::Color32};
 use sync::*;
 use toml::Value;
+
 const CONFIG_FILE_NAME: &str = "config.toml";
+
 
 fn main() -> Result<(), Box<dyn StdError>> {
     let exec_dir = executable_dir();
@@ -25,7 +28,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
         eframe::run_native(
             "Minecraft InstanceSync",
             options,
-            Box::new(|_cc| Box::new(MIC::new())),
+            Box::new(|_cc| Box::new(Mic::new())),
         );
     } else {
         if sync {
@@ -45,7 +48,7 @@ fn main() -> Result<(), Box<dyn StdError>> {
     Ok(())
 }
 
-struct MIC {
+struct Mic {
     branch: String,
     repo: String,
     run_instancesync: bool,
@@ -55,7 +58,7 @@ struct MIC {
     exec_dir: PathBuf
 }
 
-impl MIC {
+impl Mic {
     fn new() -> Self {
         let exec_dir = executable_dir();
         let config_path = executable_dir().join(CONFIG_FILE_NAME);
@@ -82,7 +85,7 @@ impl MIC {
     }
 }
 
-impl App for MIC {
+impl App for Mic {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
         CentralPanel::default().show(ctx, |ui| {
 
@@ -162,7 +165,7 @@ impl App for MIC {
 
 fn check_config(config_path: &Path) -> Result<(), Box<dyn StdError>>  {
     if !config_path.exists() {
-        fs::File::create(&config_path)?;
+        fs::File::create(config_path)?;
     }
     Ok(())
 }
@@ -179,7 +182,7 @@ fn create_entries(config: &mut toml::value::Table) {
 }
 
 fn check_updates(repo: &str, branch: &str, exec_dir: &Path) -> Result<(), Box<(dyn StdError)>> {
-    env::set_current_dir(&exec_dir)?;
+    env::set_current_dir(exec_dir)?;
 
     println!(" ");
     println!(" ");
@@ -205,7 +208,7 @@ fn check_updates(repo: &str, branch: &str, exec_dir: &Path) -> Result<(), Box<(d
 }
 
 fn create_repo(branch: &str, repo: &str, exec_dir: &Path) -> Result<(), Box<dyn StdError>> {
-    env::set_current_dir(&exec_dir)?;
+    env::set_current_dir(exec_dir)?;
 
     let msg = format!("{}{}{}", 
     color::green("Cloning git repo into "),
@@ -227,18 +230,18 @@ fn create_repo(branch: &str, repo: &str, exec_dir: &Path) -> Result<(), Box<dyn 
 }
 
 fn run_instance_sync(server: bool, exec_dir: &Path) -> Result<(), Box<dyn StdError>> {
-    env::set_current_dir(&exec_dir)?;
+    env::set_current_dir(exec_dir)?;
 
     let msg = "Launching instancesync. It will always find removed mods if there any any mods in the localMods or/and offlineMods folders. \nThey automatically get copied back over in the next step which is the intended way for having them up to date with the repo.";
     println!(" ");
     println!(" ");
-    println!("{}", color::green(&msg));
+    println!("{}", color::green(msg));
     execute::color("java -jar instancesync.jar").expect("Failed to launch instancesync.jar. check that you have java installed.");
 
     let msg = "Copying files from offlineMods and localMods folder to mods folder.";
     println!(" ");
     println!(" ");
-    println!("{}", color::green(&msg));
+    println!("{}", color::green(msg));
     #[cfg(target_os = "windows")] {
         execute::color("powershell copy-item offlineMods/* mods -ErrorAction Ignore")?;
         execute::color("powershell copy-item localMods/* mods -ErrorAction Ignore")?;
@@ -261,7 +264,7 @@ fn execute_post_exit_executable(exec_dir: &Path) -> Result<(), Box<dyn StdError>
     let msg = "Executing post_exit file if it exists.";
     println!(" ");
     println!(" ");
-    println!("{}", color::green(&msg));
+    println!("{}", color::green(msg));
 
     let post_exit_file = "post_exit";
 
@@ -276,8 +279,8 @@ fn execute_post_exit_executable(exec_dir: &Path) -> Result<(), Box<dyn StdError>
         }
     })
     .collect::<Vec<_>>();
-    if files.len() > 0 {
-        match files[0].split(".").last() {
+    if !files.is_empty() {
+        match files[0].split('.').last() {
             Some("sh") => execute::default(format!("bash {}", &files[0]).as_str())?,
             Some("ps1") => execute::default(format!("powershell {}", &files[0]).as_str())?,
             Some(_) => execute::default(&files[0])?,
