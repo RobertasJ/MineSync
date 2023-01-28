@@ -169,8 +169,8 @@ fn check_config(config_path: &Path) -> Result<(), Box<dyn StdError>>  {
 
 fn create_entries(config: &mut toml::value::Table) {
     config::check_entries(config, vec![
-        ("branch", Value::String("main".to_string())),
-        ("repo", Value::String("https://github.com/TeamAOF/skylore.git".to_string())),
+        ("branch", Value::String("".to_string())),
+        ("repo", Value::String("".to_string())),
         ("sync", Value::Boolean(true)),
         ("run_instancesync", Value::Boolean(true)),
         ("server", Value::Boolean(false)),
