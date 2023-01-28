@@ -111,7 +111,7 @@ impl App for MIC {
                 ui.horizontal(|ui| {
                     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                         if ui.button("GitHub").clicked() {
-                            open::that("https://github.com/RobertasJ/minecraft-instance-sync").expect("failed opening link.");
+                            opener::open("https://github.com/RobertasJ/minecraft-instance-sync").expect("failed opening link.");
                         }
                         
                     });
@@ -186,8 +186,14 @@ fn check_updates(repo: &str, branch: &str, exec_dir: &Path) -> Result<(), Box<(d
     println!("{}", color::green("Checking for updates."));
 
     if git::current_repo()?.unwrap() != repo {
-        println!("{}", color::bold(&color::red("Current repository doesnt match the repository in the config file. Please remove the .git folder to continue.").to_string()));
-        std::process::exit(1);
+        println!("{}", color::bold(&color::red("Current repository doesnt match the repository in the config file.").to_string()));
+        #[cfg(target_os = "windows")] {
+            execute::no_output("powershell remove-item -recurse -force .git")?;
+        }
+        #[cfg(not(target_os = "windows"))] {
+            execute::no_output("rm -rf .git")?;
+        }
+        create_repo(branch, repo, exec_dir)?;
     }
     
     execute::no_output("git add *").expect("failed to run git");
