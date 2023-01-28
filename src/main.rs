@@ -1,39 +1,163 @@
-use std::{error::Error as StdError, vec, env, fs, path::{Path}};
+use std::{error::Error as StdError, vec, env, fs, path::{Path, PathBuf}, process::exit};
+use eframe::{App, egui::{CentralPanel, Layout}, emath::Align, epaint::Color32};
 use sync::*;
 use toml::Value;
-
 const CONFIG_FILE_NAME: &str = "config.toml";
+
 fn main() -> Result<(), Box<dyn StdError>> {
-    // environment variables and config variables creation
     let exec_dir = executable_dir();
     let config_path = executable_dir().join(CONFIG_FILE_NAME);
-
-    check_config(&config_path)?;
+    check_config(&config_path).unwrap();
     let mut config = config::open_config(config_path.as_path()).expect("failed opening config file");
     create_entries(&mut config);
     config::write_config(&config, config_path.to_str().unwrap()).expect("failed to write to config");
-
-    let branch = config.get("branch").unwrap().as_str().unwrap();
-    let repo = config.get("repo").unwrap().as_str().unwrap();
+    let branch = config.get("branch").unwrap().as_str().unwrap().to_string();
+    let repo = config.get("repo").unwrap().as_str().unwrap().to_string();
     let sync = config.get("sync").unwrap().as_bool().unwrap();
     let run_instancesync = config.get("run_instancesync").unwrap().as_bool().unwrap();
     let server = config.get("server").unwrap().as_bool().unwrap();
 
-    // program logic
-    if sync {
-        if git::is_repo(&exec_dir) {
-            check_updates(repo, branch, &exec_dir).expect("failed checking for updates");
-        } else {
-            create_repo(branch, repo, &exec_dir).expect("failed creating the repo");
+    if !(config.get("server").unwrap().as_bool().unwrap()) {
+
+
+        // launch program
+        let options = eframe::NativeOptions::default();
+        eframe::run_native(
+            "Minecraft InstanceSync",
+            options,
+            Box::new(|_cc| Box::new(MIC::new())),
+        );
+    } else {
+        if sync {
+            if git::is_repo(&exec_dir) {
+                check_updates(&repo, &branch, &exec_dir).expect("failed checking for updates");
+            } else {
+                create_repo(&branch, &repo, &exec_dir).expect("failed creating the repo");
+            }
+        }
+        if run_instancesync {
+            run_instance_sync(server, &exec_dir).expect("failed to run instancesync");
+        }
+        execute_post_exit_executable(&exec_dir).expect("failed executing/checking the post_exit executable");
+    }
+    
+
+    Ok(())
+}
+
+struct MIC {
+    branch: String,
+    repo: String,
+    run_instancesync: bool,
+    server: bool,
+    sync: bool,
+    to_close: bool,
+    exec_dir: PathBuf
+}
+
+impl MIC {
+    fn new() -> Self {
+        let exec_dir = executable_dir();
+        let config_path = executable_dir().join(CONFIG_FILE_NAME);
+        check_config(&config_path).unwrap();
+        let mut config = config::open_config(config_path.as_path()).expect("failed opening config file");
+        create_entries(&mut config);
+        config::write_config(&config, config_path.to_str().unwrap()).expect("failed to write to config");
+        let branch = config.get("branch").unwrap().as_str().unwrap().to_string();
+        let repo = config.get("repo").unwrap().as_str().unwrap().to_string();
+        let sync = config.get("sync").unwrap().as_bool().unwrap();
+        let run_instancesync = config.get("run_instancesync").unwrap().as_bool().unwrap();
+        let to_close = config.get("to_close").unwrap().as_bool().unwrap();
+        let server = config.get("server").unwrap().as_bool().unwrap();
+        
+        Self {
+            branch,
+            repo,
+            sync,
+            run_instancesync,
+            server,
+            to_close,
+            exec_dir
         }
     }
+}
 
-    if run_instancesync {
-        run_instance_sync(server, &exec_dir).expect("failed to run instancesync");
+impl App for MIC {
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+        CentralPanel::default().show(ctx, |ui| {
+
+            // Title
+            ui.with_layout(Layout::top_down(Align::Center), |ui| {
+                ui.heading("Minecraft InstanceSync");
+            });
+
+            ui.checkbox(&mut self.server, "Is this a server?");
+            if self.server {
+                ui.colored_label(Color32::RED, "WARNING: THIS WILL MAKE THE GUI NOT LAUNCH.");
+            }
+            ui.checkbox(&mut self.run_instancesync, "Sync mods using instancesync?");
+            ui.checkbox(&mut self.sync, "Enable syncing with github?");
+            ui.checkbox(&mut self.to_close, "Close application after syncing?");
+
+            let name_label = ui.label("Repository link: ");
+            ui.text_edit_singleline(&mut self.repo)
+                .labelled_by(name_label.id);
+            let name_label = ui.label("Repository branch: ");
+            ui.text_edit_singleline(&mut self.branch)
+                .labelled_by(name_label.id);
+
+            // bottom part with info and sync button
+            ui.with_layout(Layout::bottom_up(Align::Center), |ui| {
+                ui.horizontal(|ui| {
+                    ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                        if ui.button("GitHub").clicked() {
+                            open::that("https://github.com/RobertasJ/minecraft-instance-sync").expect("failed opening link.");
+                        }
+                        
+                    });
+        
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        ui.label("Contact me on discord: _Robertas#0001");
+                    });
+        
+                });
+                if ui.button("Sync").on_hover_text("This can take a while").clicked() {
+                    if self.sync {
+                        if git::is_repo(&self.exec_dir) {
+                            check_updates(&self.repo, &self.branch, &self.exec_dir).expect("failed checking for updates");
+                        } else {
+                            create_repo(&self.branch, &self.repo, &self.exec_dir).expect("failed creating the repo");
+                        }
+                    }
+                    if self.run_instancesync {
+                        run_instance_sync(self.server, &self.exec_dir).expect("failed to run instancesync");
+                    }
+                    execute_post_exit_executable(&self.exec_dir).expect("failed executing/checking the post_exit executable");
+                    if self.to_close {
+                        exit(0);
+                    }
+                }
+            });
+        });
     }
 
-    execute_post_exit_executable(&exec_dir).expect("failed executing/checking the post_exit executable");
-    Ok(())
+
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        let config_path = executable_dir().join(CONFIG_FILE_NAME);
+        let mut config = config::open_config(config_path.as_path()).expect("failed opening config file");
+
+        config.insert("repo".to_string(), Value::String(self.repo.clone()));
+        config.insert("branch".to_string(), Value::String(self.branch.clone()));
+        config.insert("sync".to_string(), Value::Boolean(self.sync));
+        config.insert("run_instancesync".to_string(), Value::Boolean(self.run_instancesync));
+        config.insert("to_close".to_string(), Value::Boolean(self.to_close));
+        config.insert("server".to_string(), Value::Boolean(self.server));
+
+
+        config::write_config(&config, config_path.to_str().unwrap()).expect("failed to write to config");
+
+    }
+    
 }
 
 fn check_config(config_path: &Path) -> Result<(), Box<dyn StdError>>  {
@@ -49,7 +173,8 @@ fn create_entries(config: &mut toml::value::Table) {
         ("repo", Value::String("https://github.com/TeamAOF/skylore.git".to_string())),
         ("sync", Value::Boolean(true)),
         ("run_instancesync", Value::Boolean(true)),
-        ("server", Value::Boolean(false))
+        ("server", Value::Boolean(false)),
+        ("to_close", Value::Boolean(true))
     ]);
 }
 
@@ -155,3 +280,4 @@ fn execute_post_exit_executable(exec_dir: &Path) -> Result<(), Box<dyn StdError>
     }
     Ok(())
 }
+
