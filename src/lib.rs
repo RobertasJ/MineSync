@@ -4,6 +4,7 @@ pub mod config;
 pub mod git;
 pub mod color;
 pub mod execute;
+pub mod pages;
 
 pub fn executable_dir() -> PathBuf {
     let path = std::env::current_exe().unwrap();

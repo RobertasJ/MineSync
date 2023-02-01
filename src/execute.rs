@@ -8,13 +8,13 @@ pub fn color(command: &str) -> Result<(), Box<dyn StdError>> {
         .spawn()?
         .stdout
         .ok_or_else(|| Error::new(ErrorKind::Other,"Could not capture standard output."))?;
-
-        let reader = BufReader::new(stdout);
     
-        reader
-            .lines()
-            .filter_map(|line| line.ok())
-            .for_each(|line| println!("{}", color::blue(&line)));
+    let reader = BufReader::new(stdout);
+    
+    reader
+        .lines()
+        .filter_map(|line| line.ok())
+        .for_each(|line| println!("{}", color::blue(&line)));
     Ok(())
 }
 
@@ -24,13 +24,13 @@ pub fn default(command: &str) -> Result<(), Box<dyn StdError>> {
         .spawn()?
         .stdout
         .ok_or_else(|| Error::new(ErrorKind::Other,"Could not capture standard output."))?;
-
-        let reader = BufReader::new(stdout);
     
-        reader
-            .lines()
-            .filter_map(|line| line.ok())
-            .for_each(|line| println!("{}", line));
+    let reader = BufReader::new(stdout);
+    
+    reader
+        .lines()
+        .filter_map(|line| line.ok())
+        .for_each(|line| println!("{}", line));
     Ok(())
 }
 
