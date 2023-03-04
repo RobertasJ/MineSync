@@ -61,7 +61,7 @@
       <p>Branch of the Repository</p>
       <input class="edit-input" type="text" bind:value={folder.branch}>
       <p>Path to the Folder</p>
-      <Tooltip tooltip={folder?.path}>
+      <Tooltip tooltip={folder?.path || ""}>
         <button class="edit-input" on:click={getDir}>
           {folder?.path_shortname || "Not Set"}
         </button>
