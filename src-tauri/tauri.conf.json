@@ -69,7 +69,7 @@
       "csp": null
     },
     "updater": {
-      "active": false,
+      "active": true,
       "endpoints": [
         "https://gist.githubusercontent.com/RobertasJ/9577737dd1c29ecb3251f731485cf615/raw/a8d107487bce3e2653ba5204605d50f3f423252f/update.json"
       ],
