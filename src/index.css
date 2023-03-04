@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .btn {
+    @apply  text-left inline-block text-ellipsis overflow-hidden select-none
+            mx-2 my-1 p-0.5 w-32 h-9
+            bg-button-nothover
+            border-button-nothover rounded-sm border-2 
+            transition-all hover:bg-button-hover hover:border-button-hover
+            active:duration-100 active:bg-button-clicked active:border-button-clicked;
+    /* background-color: #213243; */
+  }
+
+  .add-btn {
+    @apply btn bg-button-clicked outline-none select-all border-button-clicked hover:bg-button-clicked hover:border-button-clicked;
+  }
+
+  .edit-input {
+    @apply  add-btn bg-bg-tertiary border-bg-tertiary 
+  hover:bg-button-hover hover:border-button-hover
+    w-64 ml-0;
+  }
+
+  .edit-input[type="text"] {
+    @apply  add-btn bg-bg-tertiary border-bg-tertiary 
+    focus:bg-button-hover focus:border-button-hover hover:bg-button-hover hover:border-button-hover
+    w-64 ml-0;
+  }
+
+  .edit-input[type="checkbox"] {
+    @apply  add-btn w-5 h-5 ;
+  }
+}
