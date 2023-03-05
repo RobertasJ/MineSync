@@ -5,8 +5,6 @@ export interface Folder {
   repo: string | null;
   run_instancesync: boolean;
   server: boolean;
-  sync: boolean;
-  name: string;
   path: string | null;
   path_shortname: string | null;
 }

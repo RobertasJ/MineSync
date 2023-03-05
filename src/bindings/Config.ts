@@ -2,5 +2,5 @@
 import type { Folder } from "./Folder";
 
 export interface Config {
-  folders: Array<Folder>;
+  folders: Record<string, Folder>;
 }

@@ -70,7 +70,6 @@
     <div>
       <p class="mb-8"><input class="edit-input" type="checkbox" bind:checked={folder.run_instancesync}>Sync Mods</p>
       <p class="mb-8"><input class="edit-input" type="checkbox" bind:checked={folder.server}>Is a Server</p>
-      <p class="mb-8"><input class="edit-input" type="checkbox" bind:checked={folder.sync}>Sync to repo</p>
     </div>
   {/if}
 </div>

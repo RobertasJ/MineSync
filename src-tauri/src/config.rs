@@ -27,7 +27,6 @@ pub struct Folder {
     pub repo: Option<String>,
     pub run_instancesync: bool,
     pub server: bool,
-    pub sync: bool,
     pub path: Option<PathBuf>,
     pub path_shortname: Option<String>,
 }
@@ -39,7 +38,6 @@ impl Default for Folder {
             repo: None,
             run_instancesync: true,
             server: false,
-            sync: true,
             path: None,
             path_shortname: None,
         }
