@@ -1,6 +1,6 @@
 [package]
 name = "mine-sync"
-version = "1.0.0"
+version = "0.0.2"
 description = "Application to sync minecraft instances with github repos"
 authors = ["RobertasJ"]
 license = ""
