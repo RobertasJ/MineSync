@@ -47,10 +47,18 @@ fn delete_folder(name: String) {
 }
 
 #[tauri::command]
-fn update_folder(current_folder: String, folder: config::Folder) {
-    let mut config = config::open_or_else_create();
-    config.folders.insert(current_folder, folder);
-    config::save(&config);
+fn update_folder(current_folder_name: String, folder: config::Folder, new_folder_name: String) {
+    if new_folder_name != current_folder_name {
+        let mut config = config::open_or_else_create();
+        config.folders.remove(&current_folder_name);
+        config.folders.insert(new_folder_name, folder);
+        config::save(&config);
+    } else {
+        let mut config = config::open_or_else_create();
+        config.folders.insert(current_folder_name, folder);
+        config::save(&config);
+    }
+    
 }
 
 #[tauri::command]

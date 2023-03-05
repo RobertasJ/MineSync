@@ -6,6 +6,8 @@
   import type { Folder } from "src/bindings/Folder";
   import { buttonContent, configChanged, saveFolder } from "../../stores/Shared";
   let folder: Folder | undefined;
+  let folderName: string = "";
+  $: folderName = $buttonContent;
   (async () => {
     if ($buttonContent != null) {
       folder = await invoke("get_folder", { name: $buttonContent });
@@ -30,8 +32,8 @@
 
   async function updateFolders() {
     if (folder != undefined) {
-      await invoke("update_folder", { folder: folder, currentFolder: $buttonContent });
-      $buttonContent = folder.name;
+      await invoke("update_folder", { folder: folder, currentFolderName: $buttonContent, newFolderName: folderName });
+      $buttonContent = folderName;
       $configChanged += 1;
     }
   }
@@ -55,7 +57,7 @@
   {#if folder != undefined && $buttonContent != null} 
     <div>
       <p>Name of the Folder</p>
-      <input class="edit-input" type="text" bind:value={folder.name}>
+      <input class="edit-input" type="text" bind:value={folderName}>
       <p>Repository to Sync From</p>
       <input class="edit-input" type="text" bind:value={folder.repo}>
       <p>Branch of the Repository</p>
