@@ -1,5 +1,5 @@
 use std::{process::Stdio, error::Error as StdError, io::{ErrorKind, Error, BufReader, BufRead}};
-use crate::{dirs, color};
+use crate::{dirs, color::{self, TtyColor}};
 use ::execute;
 
 pub fn color(command: &str) -> Result<(), Box<dyn StdError>> {
@@ -14,7 +14,7 @@ pub fn color(command: &str) -> Result<(), Box<dyn StdError>> {
     reader
         .lines()
         .filter_map(|line| line.ok())
-        .for_each(|line| println!("{}", color::blue(&line)));
+        .for_each(|line| println!("{}", &line.tty_blue()));
     Ok(())
 }
 

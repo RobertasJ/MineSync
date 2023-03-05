@@ -6,7 +6,10 @@
 
 use std::{env, fs};
 
+use crossterm::style::Stylize;
 use prelude::*;
+
+use crate::color::*;
 
 mod config;
 mod dirs;
@@ -19,22 +22,13 @@ mod color;
 #[tauri::command]
 fn folder_list() -> Vec<String> {
     let config = config::open_or_else_create();
-    let folders = config.folders;
-    let mut folder_names = Vec::new();
-    for folder in folders {
-        folder_names.push(folder.name);
-    }
-    folder_names
+    config.folders.keys().cloned().collect()
 }
 
 #[tauri::command]
 fn add_folder(name: String) {
     let mut config = config::open_or_else_create();
-    config.folders.push({
-        let mut folder = config::Folder::default();
-        folder.name = name;
-        folder
-    });
+    config.folders.insert(name, config::Folder::default());
 
     config::save(&config);
 }
@@ -42,35 +36,20 @@ fn add_folder(name: String) {
 #[tauri::command]
 fn get_folder(name: String) -> Option<config::Folder> {
     let config = config::open_or_else_create();
-    for f in config.folders {
-        if f.name == name {
-            return Some(f);
-        }
-    }
-    None
-    
+    config.folders.get(&name).cloned()
 }
 
 #[tauri::command]
 fn delete_folder(name: String) {
-    let config = config::open_or_else_create();
-    let config = config::Config {
-        folders: config.folders.into_iter().filter(|f| f.name != name).collect(),
-        ..config
-    };
-    
+    let mut config = config::open_or_else_create();
+    config.folders.remove(&name);
     config::save(&config);
 }
 
 #[tauri::command]
 fn update_folder(current_folder: String, folder: config::Folder) {
     let mut config = config::open_or_else_create();
-    for f in &mut config.folders {
-        if f.name == current_folder {
-            *f = folder.clone();
-            break;
-        }
-    }
+    config.folders.insert(current_folder, folder);
     config::save(&config);
 }
 
@@ -87,10 +66,10 @@ async fn sync_folder(name: String) {
 
             println!(" ");
             println!(" ");
-            println!("{}", color::green("Checking for updates."));
+            println!("{}", "Checking for updates.".green());
 
             if git::current_repo(exec_dir).expect("not a git repo")!= repo {
-                println!("{}", color::bold(&color::red("Current repository doesnt match the repository in the config file.").to_string()));
+                println!("{}", &"Current repository doesnt match the repository in the config file.".tty_red().tty_bold());
                 #[cfg(target_os = "windows")] {
                     execute::no_output("powershell remove-item -recurse -force .git").unwrap();
                 }
@@ -100,12 +79,14 @@ async fn sync_folder(name: String) {
                 env::set_current_dir(exec_dir).unwrap();
 
                 let msg = format!("{}{}{}", 
-                color::green("Cloning git repo into "),
-                color::bold(&color::dark_green(exec_dir.to_str().unwrap()).to_string()),
-                color::green(". Remember to not have any characters like \"(\" or \")\" \nin your path to the instance otherwise powershell will eat shit and die. \nYou can remove the tmp folder after the script is complete."));
+                "Cloning git repo into ".tty_green(),
+                exec_dir.to_str().unwrap().tty_bold(),
+                r#". Remember to not have any characters like "(" or ")" 
+in your path to the instance otherwise powershell will eat shit and die. 
+You can remove the tmp folder after the script is complete."#).tty_green();
                 println!(" ");
                 println!(" ");
-                println!("{}", color::green(&msg));
+                println!("{}", &msg.tty_green());
 
                 execute::no_output("git init").expect("failed to run git");
                 execute::no_output(&format!("git remote add origin {}", repo)).expect("failed to run git");
@@ -122,12 +103,12 @@ async fn sync_folder(name: String) {
             execute::no_output(&format!("git switch {}", branch)).expect("failed to run git");
         } else {
             let msg = format!("{}{}{}", 
-            color::green("Cloning git repo into "),
-            color::bold(&color::dark_green(exec_dir.to_str().unwrap()).to_string()),
-            color::green(". Remember to not have any characters like \"(\" or \")\" \nin your path to the instance otherwise powershell will eat shit and die. \nYou can remove the tmp folder after the script is complete."));
+            "Cloning git repo into ".tty_green(),
+            exec_dir.to_str().unwrap().tty_green().tty_bold(),
+            ". Remember to not have any characters like \"(\" or \")\" \nin your path to the instance otherwise powershell will eat shit and die. \nYou can remove the tmp folder after the script is complete.").green();
             println!(" ");
             println!(" ");
-            println!("{}", color::green(&msg));
+            println!("{}", &msg.tty_green());
 
             execute::no_output("git init").expect("failed to run git");
             execute::no_output(&format!("git remote add origin {}", repo)).expect("failed to run git");
@@ -143,13 +124,13 @@ async fn sync_folder(name: String) {
             let msg = "Launching instancesync. It will always find removed mods if there any any mods in the localMods or/and offlineMods folders. \nThey automatically get copied back over in the next step which is the intended way for having them up to date with the repo.";
             println!(" ");
             println!(" ");
-            println!("{}", color::green(msg));
+            println!("{}", msg.tty_green());
             execute::color("java -jar instancesync.jar").expect("Failed to launch instancesync.jar. check that you have java installed.");
 
             let msg = "Copying files from offlineMods and localMods folder to mods folder.";
             println!(" ");
             println!(" ");
-            println!("{}", color::green(msg));
+            println!("{}", msg.tty_green());
             #[cfg(target_os = "windows")] {
                 execute::color("powershell copy-item offlineMods/* mods -ErrorAction Ignore").unwrap();
                 execute::color("powershell copy-item localMods/* mods -ErrorAction Ignore").unwrap();
@@ -169,7 +150,7 @@ async fn sync_folder(name: String) {
         let msg = "Executing post_exit file if it exists.";
         println!(" ");
         println!(" ");
-        println!("{}", color::green(msg));
+        println!("{}", msg.tty_green());
 
         let post_exit_file = "post_exit";
 

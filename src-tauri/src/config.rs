@@ -1,19 +1,20 @@
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, collections::HashMap, hash::Hash};
 use ts_rs::TS;
+use lazy_static::lazy_static;
 
 #[derive(Serialize, Deserialize, TS, Debug)]
 #[serde(default)]
 #[ts(export, export_to = "../src/bindings/")]
 pub struct Config {
-    pub folders: Vec<Folder>,
+    pub folders: HashMap<String, Folder>,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            folders: Vec::new(),
+            folders: HashMap::new(),
         }
     }
 }
@@ -27,7 +28,6 @@ pub struct Folder {
     pub run_instancesync: bool,
     pub server: bool,
     pub sync: bool,
-    pub name: String,
     pub path: Option<PathBuf>,
     pub path_shortname: Option<String>,
 }
@@ -35,7 +35,6 @@ pub struct Folder {
 impl Default for Folder {
     fn default() -> Self {
         Self {
-            name: format!("Folder{}", rand::random::<u16>()),
             branch: None,
             repo: None,
             run_instancesync: true,
@@ -46,46 +45,44 @@ impl Default for Folder {
         }
     }
 }
+lazy_static! {
+    static ref CONFIG_PATH: PathBuf = dirs::config();
+}
 
+/// Opens the config file. if it doesnt exist it creates it.
 pub fn open_or_else_create() -> Config {
-    if let Some(config_path) = dirs::config() {
-        // config_path normally is somewhere in C:\Users\{username}\AppData\Roaming
-        if !config_path.exists() {
-            create_config(&config_path);
-        }
-        open_config(config_path)
-    } else {
-        // honestly i dont know how this could happen and how to fix it
-        panic!("Could not find config path, contact the developer please. i honestly have no idea how this can happen.");
+    if !CONFIG_PATH.exists() {
+        create_config();
     }
+    open_config()
 }
 
-fn open_config(config_path: PathBuf) -> Config {
-    let string = fs::read_to_string(&config_path).unwrap();
-    let config: Config = serde_json::from_str(&string).unwrap();
-    config
+/// Opens the config file. if it doesnt exist it panics. 
+/// Best used with the [`open_or_else_create`] function to avoid the possibility of panicing.
+fn open_config() -> Config {
+    let string = fs::read_to_string(&*CONFIG_PATH).unwrap();
+    serde_json::from_str(&string).unwrap()
 }
 
-fn create_config(config_path: &PathBuf) {
+
+/// Creates the config file and then creates the config.
+/// Best used with the [`open_or_else_create`] function.
+
+fn create_config() {
     let config = Config::default();
     let string = serde_json::to_string_pretty(&config).unwrap();
-    println!("Created config file at: {:?}", config_path);
 
     // so fs::write can create the config file
-    if let Some(parent) = config_path.parent() {
+    if let Some(parent) = CONFIG_PATH.parent() {
         if !parent.exists() {
             fs::create_dir_all(parent).unwrap();
         }
     }
-    fs::write(config_path, string).unwrap();
+    fs::write(&*CONFIG_PATH, string).unwrap();
 }
 
+/// This function takes in a config and serializes it to a json in pretty format.
 pub fn save(config: &Config) {
-    if let Some(config_path) = dirs::config() {
         let string = serde_json::to_string_pretty(&config).unwrap();
-        fs::write(config_path, string).unwrap();
-    } else {
-        // honestly i dont know how this could happen and how to fix it
-        panic!("Could not find config path, contact the developer please. i honestly have no idea how this can happen.");
-    }
+        fs::write(&*CONFIG_PATH, string).unwrap();
 }

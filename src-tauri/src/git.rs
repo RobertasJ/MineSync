@@ -15,7 +15,7 @@ pub fn current_repo(path: &Path) -> Result<String, Box<dyn Error>> {
 }
 
 pub fn fetch_and_merge(branch: String) -> Result<(), Box<dyn Error>> {
-    let repo = git2::Repository::open(&dirs::exec()?)?;
+    let repo = git2::Repository::open(&dirs::exec())?;
     
     add_and_commit(repo)?;
     
